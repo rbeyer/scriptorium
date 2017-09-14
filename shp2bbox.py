@@ -102,8 +102,9 @@ def format_coord( coord, decimals, lon360 ):
     format_str =  "{:."+str(decimals)+"f}"
 
     if( lon360 and lon < 0): lon += 360
-    outline = format_str.format(lon) +' E, '+ format_str.format(lat)
-    return outline
+    #outline = format_str.format(lon) +' E, '+ format_str.format(lat)
+    formatted = (format_str.format(lon) +' E', format_str.format(lat))
+    return formatted
 
 def main():
     try:
@@ -118,6 +119,8 @@ def main():
                               help="Number of digits past the decimal, default is 2.")
             parser.add_option("--lon360", "-l", dest="lon360", action="store_true", 
                               help="Change longitudes to 0 to 360 range, default is -180 to 180.")
+            parser.add_option("--proposal", "-p", dest="listing", action="store_true", 
+                              help="List parameters out atomically.")
 
             (options, args) = parser.parse_args()
 
@@ -154,6 +157,12 @@ def main():
                 longlat_srs.ImportFromProj4('+proj=longlat')
                 ct = osr.CoordinateTransformation(spatialRef, longlat_srs)
 
+                # This may be problematic for concave shapes.  Trent recommends using a geodesic centroid,
+                # for now, we'll just do it like this.  Trent says:
+                # See Jenness: http://www.jennessent.com/downloads/Graphics_Shapes_Online.pdf
+                # although this post has some concerns on how Jenness does it:
+                # https://gis.stackexchange.com/questions/43505/calculating-a-spherical-polygon-centroid
+
                 centroid_lon_lat = ct.TransformPoint( geom.Centroid().GetX(), geom.Centroid().GetY() )
 
                 envelope = geom.GetEnvelope()
@@ -162,24 +171,43 @@ def main():
 
                 print name+' '+desc+': '
                 #print geom.Centroid()
-                print '        Centroid: '+format_coord( centroid_lon_lat, options.decimals, options.lon360 )
-                #print envelope
-                print '    Bounding box: '+format_coord( bbox_lon_lat_min, options.decimals, options.lon360 )+' and '+format_coord( bbox_lon_lat_max, options.decimals, options.lon360 )
+                centroid = format_coord( centroid_lon_lat, options.decimals, options.lon360 )
+                min_point = format_coord( bbox_lon_lat_min, options.decimals, options.lon360 )
+                max_point = format_coord( bbox_lon_lat_max, options.decimals, options.lon360 )
+                if options.listing:
+                    print 'Center latitude: '+centroid[1]
+                    print 'Center longitude: '+centroid[0]
+                    print 'Northernmost latitude: '+ max_point[1]
+                    print 'Southernmost latitude: '+ min_point[1]
+                    print 'Westernmost longitude: '+ min_point[0]
+                    print 'Easternmost longitude: '+ max_point[0]
+                else:
+                    print '        Centroid: '+centroid[0]+', '+centroid[1]
+                    #print envelope
+                    print '    Bounding box: '+min_point[0]+', '+min_point[1]+' and '+max_point[0]+', '+max_point[1]
 
                 format_str =  "{:."+str(options.decimals)+"f}"
 
-                print '            Area: '+format_str.format( geom.GetArea()/1000000 )+' km^2'
+                # We are going to transform the geometry to an orthographic projection centered at the 
+                # centroid, so that we can more accurately compute the area and longest dimension:
+                ortho_srs = osr.SpatialReference()
+                ortho_srs.ImportFromProj4('+proj=ortho +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
+                orthotrans = osr.CoordinateTransformation(spatialRef, ortho_srs)
+
+                geom.Transform(orthotrans)
+
+                if options.listing:
+                    print 'Area: '+format_str.format( geom.GetArea()/1000000 )+' km2'
+                else:
+                    print '            Area: '+format_str.format( geom.GetArea()/1000000 )+' km^2'
 
                 ring = geom.GetGeometryRef(0)
-                # print ring.GetGeometryName()
-                # print ring.GetPointCount()
                 pairs = []
                 for p in range( ring.GetPointCount() ):
-                    lon, lat, z = ring.GetPoint(p)
-                    pairs.append( [lon, lat] )
+                    x, y, z = ring.GetPoint(p)
+                    pairs.append( [x, y] )
 
                 diam, pair = diameter( pairs )
-                #print pair
                 print '   Longest dimension: '+format_str.format( (math.sqrt(diam))/1000 )+' km'
             
 
