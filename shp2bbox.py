@@ -3,6 +3,8 @@
 # Copyright 2017, Ross A. Beyer (rbeyer@seti.org)
 # The functions orientation(), hulls(), rotatingCalipers(), and diameter()
 #    are Copyright 2002, David Eppstein, under a Python Software License.
+# The function haversine() is derived from algorithms which
+#   are Copyright 2002-2017, Chris Veness, under an MIT license
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,13 +25,14 @@
 # Apache 2 License, and can be found at 
 # https://opensource.org/licenses/PythonSoftFoundation.php
 
-
 # This program is for reading a Shapefile, exracting feature information,
 # and computing centroid and bounding box and some other characteristics for each feature.
 
 
 import os, sys, optparse, ConfigParser, math
 from osgeo import ogr, osr
+from geopy import distance
+
 
 def man(option, opt, value, parser):
     print >>sys.stderr, parser.usage
@@ -93,6 +96,21 @@ def diameter(Points):
     diam,pair = max([((p[0]-q[0])**2 + (p[1]-q[1])**2, (p,q))
                      for p,q in rotatingCalipers(Points)])
     return diam, pair
+
+def haversine( lon1, lat1, lon2, lat2, radius):
+    # The material from which this haversine() function was created is
+    # Copyright 2002-2017 by Chris Veness under an MIT license, and is 
+    # available on his website at: http://www.movable-type.co.uk/scripts/latlong.html
+    phi1 = math.radians( float(lat1) )
+    phi2 = math.radians( float(lat2) )
+    dlat = math.radians( float(lat2) - float(lat1) )
+    dlon = math.radians( float(lon2) - float(lon1) )
+
+    a = math.pow( math.sin(dlat/2),2 ) + ( math.cos( phi1 ) * math.cos( phi2 ) * math.pow( math.sin(dlon/2), 2 ) )
+    c = 2 * math.atan2( math.sqrt(a), math.sqrt(1-a) )
+    distance = radius * c
+    return distance
+
 
 
 def format_coord( coord, decimals, lon360 ):
@@ -188,13 +206,14 @@ def main():
 
                 format_str =  "{:."+str(options.decimals)+"f}"
 
-                # We are going to transform the geometry to an orthographic projection centered at the 
+                # We are going to transform the geometry to a projection centered at the 
                 # centroid, so that we can more accurately compute the area and longest dimension:
-                ortho_srs = osr.SpatialReference()
-                ortho_srs.ImportFromProj4('+proj=ortho +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
-                orthotrans = osr.CoordinateTransformation(spatialRef, ortho_srs)
+                xform_srs = osr.SpatialReference()
+                #ortho_srs.ImportFromProj4('+proj=ortho +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
+                xform_srs.ImportFromProj4('+proj=sinu +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
+                xform = osr.CoordinateTransformation(spatialRef, xform_srs)
 
-                geom.Transform(orthotrans)
+                geom.Transform(xform)
 
                 if options.listing:
                     print 'Area: '+format_str.format( geom.GetArea()/1000000 )+' km2'
@@ -208,7 +227,30 @@ def main():
                     pairs.append( [x, y] )
 
                 diam, pair = diameter( pairs )
-                print '   Longest dimension: '+format_str.format( (math.sqrt(diam))/1000 )+' km'
+                print 'Sinusoidal dist: '+format_str.format( (math.sqrt(diam))/1000 )+' km'
+
+                xtoll = osr.CoordinateTransformation(xform_srs, longlat_srs)
+
+                #geom.Transform( xtoll )
+                #geom.Transform( ct )
+                #llring = geom.GetGeometryRef(0)
+                #llpairs = []
+                #for p in range( llring.GetPointCount() ):
+                #    x, y, z = llring.GetPoint(p)
+                #    llpairs.append( [x, y] )
+
+                #lldiam, llpair = diameter( llpairs )
+
+                llpoint1 =  xtoll.TransformPoint( pair[0][0], pair[0][1] )
+                llpoint2 =  xtoll.TransformPoint( pair[1][0], pair[1][1] )
+
+                haverdist = haversine( llpoint1[0], llpoint1[1], llpoint2[0], llpoint2[1], spatialRef.GetSemiMajor() )
+                print 'Haversine dist: '+format_str.format( haverdist/1000 )+' km'
+
+                print 'Vincenty dist: '+str(distance.vincenty( llpoint1, llpoint2, ellipsoid=(spatialRef.GetSemiMajor()/1000, spatialRef.GetSemiMinor()/1000,spatialRef.GetInvFlattening()) ) )
+                #print 'Vincenty dist: '+format_str.format( distance.vincenty( llpair[0], llpair[1], ellipsoid=(spatialRef.GetSemiMajor(), spatialRef.GetSemiMinor(),spatialRef.GetInvFlattening()) )/1000 )+' km'
+                print llpoint1 
+                print llpoint2
             
 
     except Usage, err:
