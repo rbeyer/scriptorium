@@ -188,29 +188,29 @@ def main():
                 bbox_lon_lat_max = ct.TransformPoint( envelope[1], envelope[3] )
 
                 print name+' '+desc+': '
-                #print geom.Centroid()
-                centroid = format_coord( centroid_lon_lat, options.decimals, options.lon360 )
-                min_point = format_coord( bbox_lon_lat_min, options.decimals, options.lon360 )
-                max_point = format_coord( bbox_lon_lat_max, options.decimals, options.lon360 )
-                if options.listing:
-                    print 'Center latitude: '+centroid[1]
-                    print 'Center longitude: '+centroid[0]
-                    print 'Northernmost latitude: '+ max_point[1]
-                    print 'Southernmost latitude: '+ min_point[1]
-                    print 'Westernmost longitude: '+ min_point[0]
-                    print 'Easternmost longitude: '+ max_point[0]
-                else:
-                    print '        Centroid: '+centroid[0]+', '+centroid[1]
-                    #print envelope
-                    print '    Bounding box: '+min_point[0]+', '+min_point[1]+' and '+max_point[0]+', '+max_point[1]
+                ### #print geom.Centroid()
+                ### centroid = format_coord( centroid_lon_lat, options.decimals, options.lon360 )
+                ### min_point = format_coord( bbox_lon_lat_min, options.decimals, options.lon360 )
+                ### max_point = format_coord( bbox_lon_lat_max, options.decimals, options.lon360 )
+                ### if options.listing:
+                ###     print 'Center latitude: '+centroid[1]
+                ###     print 'Center longitude: '+centroid[0]
+                ###     print 'Northernmost latitude: '+ max_point[1]
+                ###     print 'Southernmost latitude: '+ min_point[1]
+                ###     print 'Westernmost longitude: '+ min_point[0]
+                ###     print 'Easternmost longitude: '+ max_point[0]
+                ### else:
+                ###     print '        Centroid: '+centroid[0]+', '+centroid[1]
+                ###     #print envelope
+                ###     print '    Bounding box: '+min_point[0]+', '+min_point[1]+' and '+max_point[0]+', '+max_point[1]
 
                 format_str =  "{:."+str(options.decimals)+"f}"
 
                 # We are going to transform the geometry to a projection centered at the 
                 # centroid, so that we can more accurately compute the area and longest dimension:
                 xform_srs = osr.SpatialReference()
-                #ortho_srs.ImportFromProj4('+proj=ortho +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
-                xform_srs.ImportFromProj4('+proj=sinu +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
+                xform_srs.ImportFromProj4('+proj=ortho +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
+                #xform_srs.ImportFromProj4('+proj=sinu +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
                 xform = osr.CoordinateTransformation(spatialRef, xform_srs)
 
                 geom.Transform(xform)
@@ -227,7 +227,7 @@ def main():
                     pairs.append( [x, y] )
 
                 diam, pair = diameter( pairs )
-                print 'Sinusoidal dist: '+format_str.format( (math.sqrt(diam))/1000 )+' km'
+                print 'Orthographic dist: '+format_str.format( (math.sqrt(diam))/1000 )+' km'
 
                 xtoll = osr.CoordinateTransformation(xform_srs, longlat_srs)
 
@@ -251,7 +251,35 @@ def main():
                 #print 'Vincenty dist: '+format_str.format( distance.vincenty( llpair[0], llpair[1], ellipsoid=(spatialRef.GetSemiMajor(), spatialRef.GetSemiMinor(),spatialRef.GetInvFlattening()) )/1000 )+' km'
                 print llpoint1 
                 print llpoint2
-            
+           
+                ## # Brute force to find the longest span:
+                ## geom.Transform(ct)
+
+                ## ring = geom.GetGeometryRef(0)
+                ## pairs = []
+                ## for p in range( ring.GetPointCount() ):
+                ##     x, y, z = ring.GetPoint(p)
+                ##     pairs.append( [x, y] )
+
+                ## max_vincenty = 0
+                ## pair_vincenty = []
+                ## max_haver = 0
+                ## pair_vincenty = []
+                ## for p in pairs:
+                ##     for q in pairs:
+                ##         l_vincenty = distance.vincenty( p, q, ellipsoid=(spatialRef.GetSemiMajor()/1000, spatialRef.GetSemiMinor()/1000,spatialRef.GetInvFlattening()) ).km
+                ##         if l_vincenty > max_vincenty:
+                ##             max_vincenty = l_vincenty
+                ##             pair_vincenty = (p,q)
+                ##         l_haver = haversine( p[0], p[1], q[0], q[1], spatialRef.GetSemiMajor() )/1000
+                ##         if l_haver> max_haver:
+                ##             max_haver= l_haver
+                ##             pair_haver = (p,q)
+                ## print 'Max Haversine: '+str(max_haver)
+                ## print pair_haver
+                ## print 'Max Vincenty: '+str(max_vincenty)
+                ## print pair_vincenty
+
 
     except Usage, err:
         print >>sys.stderr, err.msg
