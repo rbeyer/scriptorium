@@ -21,7 +21,7 @@
 # Thanks to Scott McMichael for getting me started with some example code we wrote for LOLA.
 
 
-import os, sys, optparse, ConfigParser
+import os, sys, optparse, subprocess, ConfigParser
 import json
 import urllib2
 
