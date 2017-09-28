@@ -15,8 +15,8 @@
 # limitations under the License.
 
 # This program is for taking in a lon/lat bounding box, making a query to the PDS Geoscience
-# Node's Granular Data System REST interface, and then pulling down the MOLA PEDRs that are
-# within the bounding box.
+# Node's Granular Data System REST interface, and then pulling down the MOLA PEDR points or LOLA
+# RDR points that are within the bounding box.
 #
 # Thanks to Scott McMichael for getting me started with some example code we wrote for LOLA.
 
@@ -29,7 +29,7 @@ import urllib2
 def man(option, opt, value, parser):
     print >>sys.stderr, parser.usage
     print >>sys.stderr, '''\
-This program queries the PDS Geoscience Node's REST system to download MOLA PEDR data.
+This program queries the PDS Geoscience Node's REST system to download laser altimeter data.
 '''
     sys.exit()
 
@@ -37,29 +37,33 @@ class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
 
-# Retrieves MOLA data from the WUSTL REST web interface, http://oderest.rsl.wustl.edu/
-def retrieveMOLAfile(minLat, maxLat, minLon, maxLon, outputFolder=".", padAmount=0.25):
+# Retrieves MOLA or LOLA data from the WUSTL REST web interface, http://oderest.rsl.wustl.edu/
+def retrieveLAfile(minLat, maxLat, minLon, maxLon, whichLA, padAmount=0.1, output=None):
 
     pminlat = float(minLat)-padAmount
     pmaxlat = float(maxLat)+padAmount
     pminlon = float(minLon)-padAmount
     pmaxlon = float(maxLon)+padAmount
 
-    # The MOLA is all positive East longitudes, so tidy up:
+    # Should be all positive East longitudes, so tidy up:
     if( pminlon < 0): pminlon += 360
     if( pmaxlon < 0): pmaxlon += 360
 
     # Build a query to the WUSTL REST interface for MOLA data
     baseUrl = 'http://oderest.rsl.wustl.edu/livegds'
-    query   = '?output=JSON&query=molapedr&results=v&'
+    if whichLA is 'MOLA': 
+        query   = '?output=JSON&query=molapedr&results=v&'
+        filestring = '_topo_csv.csv'
+    elif whichLA is 'LOLA': 
+        query   = '?output=JSON&query=lolardr&results=u&'
+        filestring = '_topo_simple_csv.csv'
+    else: raise ValueError("Don't have a query for "+whichLA)
     locationParams = ( 'minlat='  + str(pminlat) +
                       '&maxlat='  + str(pmaxlat) +
                       '&westlon=' + str(pminlon) +
                       '&eastlon=' + str(pmaxlon))
 
-    outputPath = os.path.join(outputFolder, 'molaPEDR.csv')
-    if os.path.exists(outputPath):
-        return True
+    if output and os.path.exists(output): return True
 
     queryUrl = baseUrl + query + locationParams
     #print queryUrl
@@ -72,10 +76,13 @@ def retrieveMOLAfile(minLat, maxLat, minLon, maxLon, outputFolder=".", padAmount
     else: print 'PDS Geosciences REST: '+r['GDSResults']['StateSummary']['StatusNote']
 
     # Find the link containing '_topo_csv.csv' and download it
+
     found = False
     for d in r['GDSResults']['ResultFiles']['ResultFile']:
-        if '_topo_csv.csv' in d['URL']:
-            cmd = "wget --output-document="+ outputPath +"  "+ d['URL']
+        if filestring in d['URL']:
+            cmd = 'wget '
+            if output: cmd += '--output-document='+ outputPath +' '
+            cmd += d['URL']
             print cmd
             os.system( cmd )
             return True
@@ -92,12 +99,20 @@ def getkey( cube, grpname, keyword ):
 def main():
     try:
         try:
-            usage = "usage: getmola.py [--help][--manual] <W/E/S/N>"
+            usage = "usage: getla.py [--help][--manual] <-m|-l> <W/E/S/N|isis.cub>"
             parser = optparse.OptionParser(usage=usage)
+            parser.set_defaults(mola=False)
+            parser.set_defaults(lola=False)
             parser.add_option("--manual", action="callback", callback=man,
                               help="Read the manual.")
+            parser.add_option("--lola", "-l", dest="lola", action="store_true",
+                              help="Get LOLA data.")
+            parser.add_option("--mola", "-m", dest="mola", action="store_true",
+                              help="Get MOLA data.")
 
             (options, args) = parser.parse_args()
+
+            if not (options.mola or options.lola): parser.error("Must either specify -m or -l")
 
             if not args: parser.error("need bounding box coordinates")
 
@@ -115,7 +130,9 @@ def main():
         except optparse.OptionError, msg:
             raise Usage(msg)
 
-        retrieveMOLAfile(minLat, maxLat, minLon, maxLon)
+        if( options.mola ):   retrieveLAfile(minLat, maxLat, minLon, maxLon, 'MOLA' )
+        elif( options.lola ): retrieveLAfile(minLat, maxLat, minLon, maxLon, 'LOLA' )
+        else: raise NotImplementedError("Don't know what kind of data to request.")
 
     except Usage, err:
         print >>sys.stderr, err.msg
