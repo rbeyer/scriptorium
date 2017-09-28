@@ -188,21 +188,21 @@ def main():
                 bbox_lon_lat_max = ct.TransformPoint( envelope[1], envelope[3] )
 
                 print name+' '+desc+': '
-                ### #print geom.Centroid()
-                ### centroid = format_coord( centroid_lon_lat, options.decimals, options.lon360 )
-                ### min_point = format_coord( bbox_lon_lat_min, options.decimals, options.lon360 )
-                ### max_point = format_coord( bbox_lon_lat_max, options.decimals, options.lon360 )
-                ### if options.listing:
-                ###     print 'Center latitude: '+centroid[1]
-                ###     print 'Center longitude: '+centroid[0]
-                ###     print 'Northernmost latitude: '+ max_point[1]
-                ###     print 'Southernmost latitude: '+ min_point[1]
-                ###     print 'Westernmost longitude: '+ min_point[0]
-                ###     print 'Easternmost longitude: '+ max_point[0]
-                ### else:
-                ###     print '        Centroid: '+centroid[0]+', '+centroid[1]
-                ###     #print envelope
-                ###     print '    Bounding box: '+min_point[0]+', '+min_point[1]+' and '+max_point[0]+', '+max_point[1]
+                #print geom.Centroid()
+                centroid = format_coord( centroid_lon_lat, options.decimals, options.lon360 )
+                min_point = format_coord( bbox_lon_lat_min, options.decimals, options.lon360 )
+                max_point = format_coord( bbox_lon_lat_max, options.decimals, options.lon360 )
+                if options.listing:
+                    print 'Center latitude: '+centroid[1]
+                    print 'Center longitude: '+centroid[0]
+                    print 'Northernmost latitude: '+ max_point[1]
+                    print 'Southernmost latitude: '+ min_point[1]
+                    print 'Westernmost longitude: '+ min_point[0]
+                    print 'Easternmost longitude: '+ max_point[0]
+                else:
+                    print '        Centroid: '+centroid[0]+', '+centroid[1]
+                    #print envelope
+                    print '    Bounding box: '+min_point[0]+', '+min_point[1]+' and '+max_point[0]+', '+max_point[1]
 
                 format_str =  "{:."+str(options.decimals)+"f}"
 
