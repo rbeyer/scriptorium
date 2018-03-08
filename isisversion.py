@@ -33,10 +33,13 @@ class Usage(Exception):
 
 def isisversionparse( version ):
     alphaend = version.lstrip(string.digits+'.')
-    version_numbers = version.rstrip(string.ascii_letters);
-    version_strings = version_numbers.split('.')
+    #version_numbers = version.rstrip(string.ascii_letters);
+    #version_strings = version_numbers.split('.')
+    version_strings = version.split('.')
     version_list = []
-    version_list = [int(item) for item in version_strings]
+    for item in version_strings:
+        try: version_list.append( int(item) )
+        except ValueError, msg : version_list.append( item )
     if( alphaend ): version_list.append( alphaend )
     # for item in version_strings: version_list.append( int(item) )
     #     # Not sure if the code below which kind of deals with 
