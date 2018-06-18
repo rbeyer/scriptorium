@@ -49,6 +49,19 @@ def main():
     (root, ext) = os.path.splitext( imgfilename )
 
     if( ext == '.cub' ):
+        # Check for weird pixels that PDS doesn't want.
+        statspvl = root+'_stats.pvl'
+        statscmd = 'stats fr='+args[0]+' to= '+statspvl
+        print( statscmd )
+        os.system(statscmd)
+        stats = pvl.load( statspvl )
+        os.remove( statspvl )
+        if( stats['Results']['LisPixels'] != 0 ): parser.error( args[0]+' has LisPixels!' )
+        if( stats['Results']['LrsPixels'] != 0 ): parser.error( args[0]+' has LrsPixels!' )
+        if( stats['Results']['HisPixels'] != 0 ): parser.error( args[0]+' has HisPixels!' )
+        if( stats['Results']['HrsPixels'] != 0 ): parser.error( args[0]+' has HrsPixels!' )
+
+
         # Run isis2pds
         imgfilename = 'isis2pds.img'
         cmd = 'isis2pds fr= '+args[0]+' to= '+imgfilename
