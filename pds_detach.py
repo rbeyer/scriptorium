@@ -33,9 +33,12 @@ class UsageError(Exception):
         self.msg = msg
 
 def main():
-    parser = optparse.OptionParser(usage="usage %prog [--help] [-o outname] <file.img|file.cub>")
+    parser = optparse.OptionParser(usage="usage %prog [--help] [-o outname][-i isis2pds commands][-e] <file.img|file.cub>")
     parser.add_option("-o","--output", dest="outname", help="output will be written to FILE.lbl and FILE.img", metavar="FILE")
     parser.add_option("-i","--isis2pds", dest="isis2pds", help="string of options to pass to pds2isis")
+    parser.add_option("-e", "--edit", action="store_true", dest="edit", default=False,
+                  help="The program will attempt to edit the labels.")
+    
 
     (options, args) = parser.parse_args()
 
@@ -86,6 +89,21 @@ def main():
                 elif( line.startswith( b'LABEL_RECORDS' ) ): continue
                 elif( line.startswith( b'^IMAGE' ) ):
                     outfile.write( b'^IMAGE'.ljust(i)+b'= "'+os.path.basename(data_file).encode('ascii')+b'"\r\n' )
+                elif( options.edit ):
+                    if( label['IMAGE']['OFFSET'] != 0.0 and line.lstrip().startswith( b'OFFSET' ) ):
+                        i = line.find(b'=')
+                        outfile.write( b'OFFSET'.ljust(i)+b'= 0.0\r\n' )
+                    elif( label['IMAGE']['SCALING_FACTOR'] != 1.0 and line.lstrip().startswith( b'SCALING_FACTOR' ) ):
+                        i = line.find(b'=')
+                        outfile.write( b'SCALING_FACTOR'.ljust(i)+b'= 1.0\r\n' )
+                    elif( line.lstrip().startswith( b'CORE_NULL' ) ):
+                        outfile.write( line.replace(b'CORE_NULL       ',b'MISSING_CONSTANT')+b'\r\n' )
+                    elif( line.lstrip().startswith( b'CORE_LOW_REPR_SATURATION' ) ): continue
+                    elif( line.lstrip().startswith( b'CORE_LOW_INSTR_SATURATION' ) ): continue
+                    elif( line.lstrip().startswith( b'CORE_HIGH_REPR_SATURATION' ) ): continue
+                    elif( line.lstrip().startswith( b'CORE_HIGH_INSTR_SATURATION' ) ): continue
+                    else: outfile.write( line + b'\r\n' )
+
                 else: outfile.write( line + b'\r\n' )
 
         with open( data_file, 'wb') as outfile:
