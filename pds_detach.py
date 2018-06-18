@@ -33,17 +33,26 @@ class UsageError(Exception):
         self.msg = msg
 
 def main():
-    parser = optparse.OptionParser(usage="usage %prog [--help] [-o outname] <file.img>")
+    parser = optparse.OptionParser(usage="usage %prog [--help] [-o outname] <file.img|file.cub>")
     parser.add_option("-o","--output", dest="outname", help="output will be written to FILE.lbl and FILE.img", metavar="FILE")
 
     (options, args) = parser.parse_args()
 
-    if not args: parser.error("need an .img file")
+    if not args: parser.error("need an .img or .cub file")
 
-    # read pvl
-    label = pvl.load( args[0] )
+    imgfilename = args[0]
 
-    (root, ext) = os.path.splitext( args[0] )
+    (root, ext) = os.path.splitext( imgfilename )
+
+    if( ext == '.cub' ):
+        # Run isis2pds
+        imgfilename = 'isis2pds.img'
+        cmd = 'isis2pds fr= '+args[0]+' to= '+imgfilename
+        print( cmd )
+        os.system(cmd)
+
+    label = pvl.load( imgfilename )
+
     label_file = root+'-det.lbl'
     data_file  = root+'-det.img'
 
@@ -55,7 +64,7 @@ def main():
         if( os.path.exists(data_file) ):
             parser.error(data_file+' exists!')
 
-    with open( args[0], 'rb') as infile:
+    with open( imgfilename, 'rb') as infile:
         with open( label_file, 'wb') as outfile:
             ## outfile.write( infile.read( label['LABEL_RECORDS'].value ) )
             # It sure would be nice to perform this manipulation with the pvl library,
@@ -79,7 +88,9 @@ def main():
 
         with open( data_file, 'wb') as outfile:
             outfile.write( infile.read() )
-    
+   
+    if( ext == '.cub' ): os.remove( imgfilename )
+
 
     #print( pvl.dumps( label ) )
     #print( str( pvl.dumps( label ), 'ascii') )
