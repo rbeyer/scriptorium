@@ -35,6 +35,7 @@ class UsageError(Exception):
 def main():
     parser = optparse.OptionParser(usage="usage %prog [--help] [-o outname] <file.img|file.cub>")
     parser.add_option("-o","--output", dest="outname", help="output will be written to FILE.lbl and FILE.img", metavar="FILE")
+    parser.add_option("-i","--isis2pds", dest="isis2pds", help="string of options to pass to pds2isis")
 
     (options, args) = parser.parse_args()
 
@@ -48,6 +49,7 @@ def main():
         # Run isis2pds
         imgfilename = 'isis2pds.img'
         cmd = 'isis2pds fr= '+args[0]+' to= '+imgfilename
+        if options.isis2pds: cmd += ' '+options.isis2pds
         print( cmd )
         os.system(cmd)
 
