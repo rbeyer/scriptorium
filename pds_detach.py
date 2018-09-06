@@ -105,10 +105,10 @@ def main():
                 elif( options.edit ):
                     if( label['IMAGE']['OFFSET'] != 0.0 and line.lstrip().startswith( b'OFFSET' ) ):
                         i = line.find(b'=')
-                        outfile.write( b'OFFSET'.ljust(i)+b'= 0.0\r\n' )
+                        outfile.write( b'  OFFSET'.ljust(i)+b'= 0.0\r\n' )
                     elif( label['IMAGE']['SCALING_FACTOR'] != 1.0 and line.lstrip().startswith( b'SCALING_FACTOR' ) ):
                         i = line.find(b'=')
-                        outfile.write( b'SCALING_FACTOR'.ljust(i)+b'= 1.0\r\n' )
+                        outfile.write( b'  SCALING_FACTOR'.ljust(i)+b'= 1.0\r\n' )
                     elif( line.lstrip().startswith( b'CORE_NULL' ) ):
                         outfile.write( line.replace(b'CORE_NULL       ',b'MISSING_CONSTANT')+b'\r\n' )
                     elif( line.lstrip().startswith( b'CORE_LOW_REPR_SATURATION' ) ): continue
