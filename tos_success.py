@@ -56,20 +56,22 @@ def main():
         except optparse.OptionError as err:
             raise Usage(err)
 
-        wth = []
+        wth = {}
         with open( options.wthfile, newline='' ) as csvfile:
             wthreader = csv.reader( csvfile )
             for row in wthreader:
-                if row: wth.append(row[0])
+                if row: wth[row[0]] = row[0]+','+','.join(row[2:])
 
         foundwths = 0
         with open( args[0], newline='' ) as iofile:
             iofreader = csv.reader( iofile )
             for row in iofreader:
                 if len(row) > 19 and "H" in row[0]:
-                    if any(suggestion in row[19] for suggestion in wth):
-                        foundwths += 1
-                        print( row[19] )
+                    for suggestion in list(wth):
+                        if suggestion in row[19]:
+                            foundwths += 1
+                            #print( row[19] )
+                            print(wth[suggestion])
 
         print ("Found: "+str(foundwths)+" of "+str(len(wth)))
 
@@ -77,11 +79,6 @@ def main():
         print >>sys.stderr, err.msg
         # print >>sys.stderr, "for help use --help"
         return 2
-
-    # # To more easily debug this program, comment out this catch block.
-    # except Exception, err:
-    #     sys.stderr.write( str(err) + '\n' )
-    #     return 1
 
 if __name__ == "__main__":
     sys.exit(main())
