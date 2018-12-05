@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2013, Ross A. Beyer (rbeyer@seti.org)
+# Copyright 2013,2018, Ross A. Beyer (rbeyer@seti.org)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ def isisversionparse( version ):
     version_list = []
     for item in version_strings:
         try: version_list.append( int(item) )
-        except ValueError, msg : version_list.append( item )
+        except ValueError: version_list.append( item )
     if( alphaend ): version_list.append( alphaend )
     # for item in version_strings: version_list.append( int(item) )
     #     # Not sure if the code below which kind of deals with 
@@ -59,15 +59,16 @@ def isisversionparse( version ):
 
 def isisversion(verbose=False):
     path = '/usr/local/isis3/isis/' # default spot to try
-    try:                    path = os.environ['ISISROOT']
-    except KeyError, msg:   pass
+    try:               path = os.environ['ISISROOT']
+    except KeyError:   pass
 
     # if( verbose ): print path
     
     version = None
     if os.path.exists( path+'/version' ):
         v = open( path+"/version", 'r')
-        version = v.readline().strip()
+        #version = v.readline().strip()
+        version = v.readline().split()[0]
         v.close()
     else:
         f = open(path+"/inc/Constants.h",'r');
@@ -80,7 +81,7 @@ def isisversion(verbose=False):
         f.close()
 
     if( version ):
-        if( verbose ): print "\tFound Isis Version: "+version+ " at "+path;
+        if( verbose ): print("\tFound Isis Version: "+version+ " at "+path)
         return isisversionparse( version )
 
     raise Exception( "Could not find a version string in " + f.str() )
@@ -99,8 +100,8 @@ def main():
 
             (options, args) = parser.parse_args()
 
-        except optparse.OptionError, msg:
-            raise Usage(msg)
+        except optparse.OptionError as error:
+            raise Usage(error)
 
         version = isisversion( True )
 
@@ -126,11 +127,11 @@ def main():
             elif( test_tuple > version):    comp = ' is greater than '
             else: comp = ' is not known in relation to '
                 
-            print str(test_tuple) + comp + str(version)
+            print( str(test_tuple) + comp + str(version) )
         
 
-    except Usage, err:
-        print >>sys.stderr, err.msg
+    except Usage as error:
+        print( error, file=sys.stderr )
         # print >>sys.stderr, "for help use --help"
         return 2
     
