@@ -150,7 +150,6 @@ def main():
         except optparse.OptionError, msg:
             raise Usage(msg)
 
-
         for shp in args:
             driver = ogr.GetDriverByName("ESRI Shapefile")
             try: 
