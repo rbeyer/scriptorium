@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""This program returns the version number of ISIS3."""
 
 # Copyright 2013,2018, Ross A. Beyer (rbeyer@seti.org)
 #
@@ -14,22 +15,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os, optparse, re, sys, string;
+import os, argparse, re, sys, string
 
-def man(option, opt, value, parser):
-    print >>sys.stderr, parser.usage
-    print >>sys.stderr, '''\
-This program returns the version number of ISIS.
+assert( sys.version_info >= (3,0) ) # Must be using Python 3.
 
-If the optional version-number is given, the program will
-determine whether the version given is greater than or less
-than the found ISIS version.  This is mostly for debugging.
-'''
-    sys.exit()
 
-class Usage(Exception):
+class IVError( Exception ):
+    """Base class for exceptions in this module."""
+    pass
+
+class VersionFileNotFoundError( IVError ):
     def __init__(self, msg):
         self.msg = msg
+
+class VersionNotFoundError( IVError ):
+    def __init__(self, msg):
+        self.msg = msg
+
 
 def isisversionparse( version ):
     alphaend = version.lstrip(string.digits+'.')
@@ -70,7 +72,7 @@ def isisversion(verbose=False):
         #version = v.readline().strip()
         version = v.readline().split()[0]
         v.close()
-    else:
+    elif os.path.exists( path+"/inc/Constants.h" ):
         f = open(path+"/inc/Constants.h",'r');
         for line in f:
              if ( line.rfind("std::string version(") > 0 ):
@@ -79,12 +81,13 @@ def isisversion(verbose=False):
                 version = line[index+9:index_e].rstrip()
                 #version = version +'b'
         f.close()
+    else: raise VersionFileNotFoundError( "Could not find a file that might have a version string.  Is $ISISROOT set?" )
 
     if( version ):
         if( verbose ): print("\tFound Isis Version: "+version+ " at "+path)
         return isisversionparse( version )
 
-    raise Exception( "Could not find a version string in " + f.str() )
+    raise VersionNotFoundError( "Could not find a version string in " + f.str() )
     return False
 	
 
@@ -92,20 +95,15 @@ def isisversion(verbose=False):
 
 def main():
     try:
-        try:
-            usage = "usage: isisversion.py [--help][--manual] [version_number]"
-            parser = optparse.OptionParser(usage=usage)
-            parser.add_option("--manual", action="callback", callback=man,
-                              help="Read the manual.")
 
-            (options, args) = parser.parse_args()
+        parser = argparse.ArgumentParser(description=__doc__+ " If the optional version-number is given, the program will determine whether the version given is greater than or less than the found ISIS version.")
+        parser.add_argument('test_version', nargs='?')
 
-        except optparse.OptionError as error:
-            raise Usage(error)
+        args = parser.parse_args()
 
         version = isisversion( True )
 
-        if( len(args) > 0 ):
+        if( args.test_version ):
             test_list = []
             
             # for item in args[0].split('.'): 
@@ -119,7 +117,7 @@ def main():
             #         #     test_list.append( item[len(leading_number):] )
             #         # else: test_list.append( item )
             #         test_list.append( item )
-            test_tuple = isisversionparse( args[0] )
+            test_tuple = isisversionparse( args.test_version )
 
             comp = ''
             if( test_tuple < version ):     comp = ' is less than '
@@ -130,11 +128,12 @@ def main():
             print( str(test_tuple) + comp + str(version) )
         
 
-    except Usage as error:
+    except IVError as error:
         print( error, file=sys.stderr )
+        #print >>sys.stderr, error.msg
         # print >>sys.stderr, "for help use --help"
         return 2
-    
+
 
 if __name__ == "__main__":
     sys.exit(main())
