@@ -18,8 +18,7 @@
 # Of course, if mkdsk would just read the .obj file format and
 # ignore the stuff it doesn't need, this cleaning wouldn't be needed.
 
-import os, sys, argparse
-from astropy.io import fits
+import argparse
 
 def main():
     parser = argparse.ArgumentParser( description=__doc__ )
