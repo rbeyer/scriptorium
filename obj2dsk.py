@@ -15,14 +15,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Changing 'spice_path' and the argument defaults for your setup will
+# make you much happier.  These are set for my MU69 setup.
+
 import argparse
 import subprocess
 from pathlib import Path
 
 
 def main():
+    spice_path = Path('/Users/rbeyer/projects/new_horizons/kem_science_spice')
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-o', '--output',  required=False, default='.bds')
+    parser.add_argument('-s', '--surface', required=False, default='2486958')
+    parser.add_argument('-c', '--center',  required=False, default='2486958')
+    parser.add_argument('-f', '--frame',   required=False, default='MU69_FIXED')
+    parser.add_argument('-l', '--lsk',     required=False,
+                        default=spice_path / 'lsk' / 'naif0012.tls')
+    parser.add_argument('--kernels',       required=False,
+                        default=spice_path / 'ggi' / 'MU69-Ultima.tpc')
     parser.add_argument('-k', '--keep', required=False, default=False)
     parser.add_argument('file', help='.obj file')
 
@@ -54,11 +66,8 @@ def main():
     # Step 2: make the setup file:
     setup_file = in_obj.with_suffix('.obj2dsk.mkdsksetup')
     with open(setup_file, 'w') as s:
-        s.write(get_setup('2486958',
-                          '2486958',
-                          'MU69_FIXED',
-                          '/Users/rbeyer/projects/new_horizons/kem_science_spice/lsk/naif0012.tls',
-                          '/Users/rbeyer/projects/new_horizons/kem_science_spice/ggi/MU69-Ultima.tpc'))
+        s.write(get_setup(args.surface, args.center, args.frame,
+                          args.lsk, args.kernels))
 
     # Step 3: Run mkdsk:
     subprocess.run(['mkdsk',
