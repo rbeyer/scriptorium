@@ -1,6 +1,9 @@
 #!/usr/bin/env python
+'''You can easily read off two sample,line coordinates from qview, but ISIS
+crop wants one sample,line and then offsets.  This just takes two coordinates,
+does the math, and then calls crop.'''
 
-# Copyright 2016, Ross A. Beyer (rbeyer@seti.org)
+# Copyright 2016, 2019, Ross A. Beyer (rbeyer@seti.org)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,81 +18,62 @@
 # limitations under the License.
 
 
-# The arguments to ISIS crop require a sample/line pair and then a set of offsets.  I typically
-# have two sample/line pairs read from qview, and got tired of always bringing up the calculator
-# to compute the offsets.
-# Warning: very Ross-specific.
+# The arguments to ISIS crop require a sample/line pair and then a set of offsets.
+# I typically have two sample/line pairs read from qview, and got tired of always
+# bringing up the calculator to compute the offsets.
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
 
 
-import os, sys, optparse
+def crop(fr, to, samp, line, nsamp, nline):
+    cmd = ('crop', f'from= {fr}', f'to= {to}',
+           f'samp= {samp}', f'line= {line}',
+           f'nsamp= {nsamp}', f'nline= {nline}')
+    return subprocess.run(cmd, check=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+                          universal_newlines=True)
 
-def man(option, opt, value, parser):
-    print >>sys.stderr, parser.usage
-    print >>sys.stderr, '''\
-This program performs map projection photrim and mosaicking.
-'''
-    sys.exit()
 
-class Usage(Exception):
-    def __init__(self, msg):
-        self.msg = msg
+def calcoffset(first, second):
+    (f_samp, f_line) = first.split(':')
+    (s_samp, s_line) = second.split(':')
+    nsamp = int(s_samp) - int(f_samp)
+    nline = int(s_line) - int(f_line)
+    return(f_samp, f_line, str(nsamp), str(nline))
 
-def crop( fr, to, samp, line, nsamp, nline ):
-    cmd = 'crop from= '+fr+' to= '+to+' samp= '+samp+' line= '+line+' nsamp= '+nsamp+' nline= '+nline
-    print cmd
-    os.system(cmd)
-
-def calcoffset( first, second ):
-    (first_samp, first_line) = first.split(':')
-    (second_samp, second_line) = second.split(':')
-    nsamp = int(second_samp) - int(first_samp)
-    nline = int(second_line) - int(first_line)
-    return( first_samp, first_line, str(nsamp), str(nline) )
 
 def main():
-    try:
-        try:
-            usage = "usage: cropsl.py [--help][--manual] [--output <filename>] --first <samp:line> --second <samp:line> <cube file>"
-            parser = optparse.OptionParser(usage=usage)
-            parser.add_option("--manual", action="callback", callback=man,
-                              help="Read the manual.")
-            parser.add_option("-o", "--output", dest="output",
-                              help="The output filename.")
-            parser.add_option("-f", "--first", dest="first",
-                              help="The sample and line of the first point.")
-            parser.add_option("-s", "--second", dest="second",
-                              help="The sample and line of the second point.")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-o', '--output', help="The output filename.")
+    parser.add_argument('-f', '--first',
+                        help='The sample and line of the first point, '
+                        'separated by a colon, like -f 3:10')
+    parser.add_argument('-s', '--second',
+                        help='The sample and line of the second point, '
+                        'separated by a colon.')
+    parser.add_argument('cube', help='Cube file(s) to crop.', nargs='+')
 
-            (options, args) = parser.parse_args()
+    args = parser.parse_args()
 
-            if not args: parser.error("need .cub file")
+    for cub in args.cube:
+        if(args.output):
+            out_p = Path(args.output)
+        else:
+            in_p = Path(cub)
+            out_p = in_p.with_suffix('.crop.cub')
 
-        except optparse.OptionError, msg:
-            raise Usage(msg)
+        (samp, line, nsamp, nline) = calcoffset(args.first, args.second)
 
-        for cub in args:
-            if( options.output ): outfile = options.output
-            else:
-                base = os.path.basename( cub )
-                (root, ext) = os.path.splitext(base)
-                outfile = root+'.crop.cub'
+        print(crop(in_p, out_p, samp, line, nsamp, nline).args)
 
-            (samp, line, nsamp, nline) = calcoffset( options.first, options.second )
+        if(args.output):
+            # If there's a specific output filename, only do one.
+            break
 
-            crop( cub, outfile, samp, line, nsamp, nline )
-
-            if( options.output): break
-
-
-    except Usage, err:
-        print >>sys.stderr, err.msg
-        # print >>sys.stderr, "for help use --help"
-        return 2
-
-    # # To more easily debug this program, comment out this catch block.
-    # except Exception, err:
-    #     sys.stderr.write( str(err) + '\n' )
-    #     return 1
 
 if __name__ == "__main__":
     sys.exit(main())
