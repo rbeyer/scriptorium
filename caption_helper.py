@@ -3,7 +3,7 @@
 an ISIS cube file and presents the text in a way that might help
 someone get started on writing a figure caption.'''
 
-# Copyright 2016, 2019, Ross A. Beyer (rbeyer@seti.org)
+# Copyright 2019, Ross A. Beyer (rbeyer@seti.org)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
