@@ -41,8 +41,6 @@ from osgeo import ogr
 import pvl
 import kalasiris as isis
 
-from util import parent_parser
-
 
 class ImgInfo:
     def __init__(self, path: os.PathLike):
@@ -89,9 +87,7 @@ class ImgInfo:
 
 
 def arg_parser():
-    pp = parent_parser()
     p = argparse.ArgumentParser(
-        parents=[pp],
         description=__doc__,
         epilog="""The quality values reported by this program are based on the
 recommendations and limitations in Becker et al. (2015).  They have
@@ -103,7 +99,7 @@ the worse) if the value is beyond the acceptable limit.
     p.add_argument(
         "-v", "--verbose", action="store_true", help="Will report information."
     )
-    p.add_argument("files", nargs=2, help="Cube files or caminfo output.")
+    p.add_argument("files", metavar="file", nargs=2, help="Cube files or caminfo output.")
     return p
 
 
