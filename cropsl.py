@@ -60,10 +60,10 @@ def main():
     args = parser.parse_args()
 
     for cub in args.cube:
+        in_p = Path(cub)
         if(args.output):
             out_p = Path(args.output)
         else:
-            in_p = Path(cub)
             out_p = in_p.with_suffix('.crop.cub')
 
         (samp, line, nsamp, nline) = calcoffset(args.first, args.second)
