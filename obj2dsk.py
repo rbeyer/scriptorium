@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''Uses the SPICE mkdsk program to convert a .obj file to a .bds file.'''
 
-# Copyright 2019, Ross A. Beyer (rbeyer@rossbeyer.net)
+# Copyright 2019-2021, Ross A. Beyer (rbeyer@rossbeyer.net)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ def main():
     parser.add_argument('-l', '--lsk',     required=False,
                         default=spice_path / 'lsk' / 'naif0012.tls')
     parser.add_argument('--kernels',       required=False,
-                        default=spice_path / 'ggi' / 'MU69-Ultima.tpc')
+                        default=spice_path / 'ggi' / 'nh_mu69.tpc')
     parser.add_argument('-k', '--keep', required=False, default=False)
     parser.add_argument('file', help='.obj file')
 
