@@ -33,6 +33,7 @@ import argparse
 import math
 import os
 import sys
+from pathlib import Path
 from osgeo import ogr, osr
 from geopy import distance
 
@@ -142,8 +143,15 @@ def main():
     # if not os.path.exists( filename ): parser.error( filename+" is not a file.")
 
     for shp in args.shpfile:
+        shp_path = Path(shp)
+        if not shp_path.exists():
+            if str(shp_path).endswith("."):
+                shp_path = shp_path.parent / str(shp_path.stem).rstrip(".")
+            shp_path = shp_path.with_suffix(".shp")
+            if not shp_path.exists():
+                raise FileNotFoundError(f"Could not find the file {shp}")
         driver = ogr.GetDriverByName("ESRI Shapefile")
-        dataSource = driver.Open(shp, 0)
+        dataSource = driver.Open(str(shp_path), 0)
         layer = dataSource.GetLayer()
 
         for feature in layer:
@@ -201,10 +209,14 @@ def main():
             # We are going to transform the geometry to a projection centered at the
             # centroid, so that we can more accurately compute the area and longest dimension:
             xform_srs = osr.SpatialReference()
-            xform_srs.ImportFromProj4('+proj=ortho +lat_0={} +lon_0={} +a={} +b={}'.format(centroid_lon_lat[1],
-                                                                                           centroid_lon_lat[0],
-                                                                                           spatialRef.GetSemiMajor(),
-                                                                                           spatialRef.GetSemiMinor()))
+            xform_srs.ImportFromProj4(
+                '+proj=ortho +lat_0={} +lon_0={} +a={} +b={}'.format(
+                    centroid_lon_lat[1],
+                    centroid_lon_lat[0],
+                    spatialRef.GetSemiMajor(),
+                    spatialRef.GetSemiMinor()
+                )
+            )
             # xform_srs.ImportFromProj4('+proj=sinu +lat_0='+str(centroid_lon_lat[1])+' +lon_0='+str(centroid_lon_lat[0])+' +a='+str(spatialRef.GetSemiMajor())+' +b='+str(spatialRef.GetSemiMinor()))
             xform = osr.CoordinateTransformation(spatialRef, xform_srs)
 
@@ -244,15 +256,24 @@ def main():
             # print(f'llpoint1: {llpoint1}')
             # print(f'llpoint2: {llpoint2}')
 
-            haverdist = haversine(llpoint1[0], llpoint1[1], llpoint2[0], llpoint2[1], spatialRef.GetSemiMajor())
+            haverdist = haversine(
+                llpoint1[0], llpoint1[1], llpoint2[0], llpoint2[1],
+                spatialRef.GetSemiMajor()
+            )
             print('Haversine dist: ' + format_str.format(haverdist / 1000) + ' km')
 
             # print('Vincenty dist: ' + str(distance.vincenty((llpoint1[1], llpoint1[0]),
-            print('Geodesic dist: ' + str(distance.geodesic((llpoint1[1], llpoint1[0]),
-                                                            (llpoint2[1], llpoint2[0]),
-                                                            ellipsoid=(spatialRef.GetSemiMajor() / 1000,
-                                                                       spatialRef.GetSemiMinor() / 1000,
-                                                                       spatialRef.GetInvFlattening()))))
+            print('Geodesic dist: ' + str(
+                distance.geodesic(
+                    (llpoint1[1], llpoint1[0]),
+                    (llpoint2[1], llpoint2[0]),
+                    ellipsoid=(
+                        spatialRef.GetSemiMajor() / 1000,
+                        spatialRef.GetSemiMinor() / 1000,
+                        spatialRef.GetInvFlattening()
+                    )
+                )
+            ))
             # print 'Vincenty dist: '+format_str.format( distance.vincenty( llpair[0], llpair[1], ellipsoid=(spatialRef.GetSemiMajor(), spatialRef.GetSemiMinor(),spatialRef.GetInvFlattening()) )/1000 )+' km'
             # print(llpoint1)
             # print(llpoint2)
