@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''Reads a Shapefile, exracting feature information. Computes centroid, bounding box, and some other characteristics for each feature.'''
 
-# Copyright 2017, 2019, Ross A. Beyer (rbeyer@seti.org)
+# Copyright 2017-2021, Ross A. Beyer (rbeyer@seti.org)
 # The functions orientation(), hulls(), rotatingCalipers(), and diameter()
 #    are Copyright 2002, David Eppstein, under a Python Software License.
 # The function haversine() is derived from algorithms which
@@ -19,15 +19,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The copyright status of the orientation, hulls, rotatingCalipers, and diameter
-# functions by David Eppstein are uncertain.  The margin of the webpage referenced
-# indicates that the code may be under a Python Software License, and this work assumes
-# that is their copyright status.  The Python Software License is compatible with the
-# Apache 2 License, and can be found at
+# The copyright status of the orientation, hulls, rotatingCalipers,
+# and diameter functions by David Eppstein are uncertain.  The margin
+# of the webpage referenced indicates that the code may be under a
+# Python Software License, and this work assumes that is their copyright
+# status.  The Python Software License is compatible with the Apache
+# 2 License, and can be found at
 # https://opensource.org/licenses/PythonSoftFoundation.php
 
-# This program is for reading a Shapefile, exracting feature information,
-# and computing centroid and bounding box and some other characteristics for each feature.
 
 import argparse
 import math
@@ -37,14 +36,14 @@ from pathlib import Path
 from osgeo import ogr, osr
 from geopy import distance
 
-# The next four functions (orientation, hulls, rotatingCalipers, and diameter) are
-# from David Eppstein at https://code.activestate.com/recipes/117225/ with a minor change
-# to diameter to also return the 'diam' parameter (which is the diameter squared).
-#
+# The next four functions (orientation, hulls, rotatingCalipers, and
+# diameter) are from David Eppstein at
+# https://code.activestate.com/recipes/117225/ with a minor change
+# to diameter to also return the 'diam' parameter (which is the
+# diameter squared).
+
 # convex hull (Graham scan by x-coordinate) and diameter of a set of points
 # David Eppstein, UC Irvine, 7 Mar 2002
-
-# from __future__ import generators
 
 
 def orientation(p, q, r):
@@ -69,8 +68,8 @@ def hulls(Points):
 
 def rotatingCalipers(Points):
     '''Given a list of 2d points, finds all ways of sandwiching the points
-between two parallel lines that touch one point each, and yields the sequence
-of pairs of points touched by each pair of lines.'''
+    between two parallel lines that touch one point each, and yields the
+    sequence of pairs of points touched by each pair of lines.'''
     U, L = hulls(Points)
     i = 0
     j = len(L) - 1
@@ -94,20 +93,25 @@ of pairs of points touched by each pair of lines.'''
 
 def diameter(Points):
     '''Given a list of 2d points, returns the pair that's farthest apart.'''
-    diam, pair = max([((p[0] - q[0])**2 + (p[1] - q[1])**2, (p, q)) for p, q in rotatingCalipers(Points)])
+    diam, pair = max([(
+        (p[0] - q[0])**2 + (p[1] - q[1])**2, (p, q)
+    ) for p, q in rotatingCalipers(Points)])
     return diam, pair
 
 
 def haversine(lon1, lat1, lon2, lat2, radius):
     # The material from which this haversine() function was created is
     # Copyright 2002-2017 by Chris Veness under an MIT license, and is
-    # available on his website at: http://www.movable-type.co.uk/scripts/latlong.html
+    # available on his website at:
+    # http://www.movable-type.co.uk/scripts/latlong.html
     phi1 = math.radians(float(lat1))
     phi2 = math.radians(float(lat2))
     dlat = math.radians(float(lat2) - float(lat1))
     dlon = math.radians(float(lon2) - float(lon1))
 
-    a = math.pow(math.sin(dlat / 2), 2) + (math.cos(phi1) * math.cos(phi2) * math.pow(math.sin(dlon / 2), 2))
+    a = math.pow(math.sin(dlat / 2), 2) + (
+        math.cos(phi1) * math.cos(phi2) * math.pow(math.sin(dlon / 2), 2)
+    )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     distance = radius * c
     return distance
@@ -128,19 +132,21 @@ def format_coord(coord, decimals, lon360):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-d', '--decimals', default=2,
-                        help="Number of digits past the decimal, default is 2.")
-    parser.add_argument('-l', '--lon360', action="store_true",
-                        help="Change longitudes to 0 to 360 range, default is -180 to 180.")
-    parser.add_argument('-p', '--parameters', action="store_true",
-                        help="List parameters out atomically.")
-    parser.add_argument('shpfile', help="shape files",
-                        nargs='+')
+    parser.add_argument(
+        '-d', '--decimals', default=2,
+        help="Number of digits past the decimal, default is 2."
+    )
+    parser.add_argument(
+        '-l', '--lon360', action="store_true",
+        help="Change longitudes to 0 to 360 range, default is -180 to 180."
+    )
+    parser.add_argument(
+        '-p', '--parameters', action="store_true",
+        help="List parameters out atomically."
+    )
+    parser.add_argument('shpfile', help="shape files", nargs='+')
 
     args = parser.parse_args()
-
-    # for filename in args:
-    # if not os.path.exists( filename ): parser.error( filename+" is not a file.")
 
     for shp in args.shpfile:
         shp_path = Path(shp)
@@ -150,8 +156,9 @@ def main():
             shp_path = shp_path.with_suffix(".shp")
             if not shp_path.exists():
                 raise FileNotFoundError(f"Could not find the file {shp}")
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        dataSource = driver.Open(str(shp_path), 0)
+        # driver = ogr.GetDriverByName("ESRI Shapefile")
+        # dataSource = driver.Open(str(shp_path), 0)
+        dataSource = ogr.Open(str(shp_path), 0)
         layer = dataSource.GetLayer()
 
         for feature in layer:
@@ -167,14 +174,16 @@ def main():
             spatialRef = geom.GetSpatialReference()
 
             longlat_srs = osr.SpatialReference()
-            longlat_srs.ImportFromProj4('+proj=longlat +a={} +b={}'.format(spatialRef.GetSemiMajor(),
-                                                                           spatialRef.GetSemiMinor()))
+            longlat_srs.ImportFromProj4('+proj=longlat +a={} +b={}'.format(
+                spatialRef.GetSemiMajor(), spatialRef.GetSemiMinor()
+            ))
             ct = osr.CoordinateTransformation(spatialRef, longlat_srs)
 
             # This may be problematic for concave shapes.
             # Trent recommends using a geodesic centroid,
             # for now, we'll just do it like this.  Trent says:
-            # See Jenness: http://www.jennessent.com/downloads/Graphics_Shapes_Online.pdf
+            # See Jenness:
+            # http://www.jennessent.com/downloads/Graphics_Shapes_Online.pdf
             # although this post has some concerns on how Jenness does it:
             # https://gis.stackexchange.com/questions/43505/calculating-a-spherical-polygon-centroid
             centroid_lon_lat = ct.TransformPoint(geom.Centroid().GetX(),
