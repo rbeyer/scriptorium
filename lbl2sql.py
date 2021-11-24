@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 """Reads a PDS3 INDEX or CUMINDEX, and creates an appropriate table."""
-# Consider putting in limiters:
-# - Limit columns to be ingested (odds are good you don't need all of them).
 
 # Copyright 2021, Ross A. Beyer (rbeyer@rossbeyer.net)
 #
@@ -30,7 +28,6 @@ from sqlalchemy_utils import database_exists
 from geoalchemy2 import Geometry, Geography
 
 corner_keys = ("upper_left", "upper_right", "lower_right", "lower_left")
-
 geotypes = {"Geometry": Geometry, "Geography": Geography}
 geotype_default = "Geography"
 
