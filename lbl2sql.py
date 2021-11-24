@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Reads a PDS3 INDEX or CUMINDEX, and creates an appropriate table."""
+"""Reads a PDS3 INDEX or CUMINDEX, and creates an appropriate table or
+just inserts."""
 
 # Copyright 2021, Ross A. Beyer (rbeyer@rossbeyer.net)
 #
@@ -95,7 +96,9 @@ def arg_parser():
     )
     parser.add_argument(
         "-p", "--product",
-        help="The product ID of a single product to insert into the database."
+        help="The product ID of a single product to insert into the database. "
+             "If given, assume the db and table already exist, and ignore "
+             "-a, -b, -w, -e, and -c options."
     )
     parser.add_argument(
         "-s", "--srid",
@@ -104,6 +107,12 @@ def arg_parser():
         default=930100,
         help="SRID to use to insert geometries into the database. "
              "Default: %(default)s"
+    )
+    parser.add_argument(
+        "--table",
+        help="Name of the table in the database to create or insert into.  "
+             "If not specified, program will try and determine it from the "
+             "label."
     )
     parser.add_argument(
         "-t", "--type",
@@ -164,30 +173,55 @@ def main():
     else:
         columns = get_columns(label)
 
-    table, geom_cols = create_table(
-        label, metadata, columns, geotype=geotypes[args.type], srid=args.srid
-    )
-    # for c in table.c:
-    #     print(c.key)
+    if args.table is None:
+        table_name = label["INDEX_TABLE"]["NAME"]
+    else:
+        table_name = args.table
 
-    table.create(engine)
+    if args.product is not None:
+        meta.reflect(bind=engine)
+        dbtable = meta.tables[table_name]
+        p = get_product(args.product, label["INDEX_TABLE"], args.index)
+        insert_one(
+            engine.connect(),
+            dbtable,
+            p,
+            geotype=geotypes[args.type],
+            srid=args.srid
+        )
 
-    volume, orbit, lastdate = insert(
-        engine.connect(),
-        table,
-        columns,
-        geom_cols,
-        args.index,
-        pvl_table=label["INDEX_TABLE"],
-        lower_lat=args.above_lat,
-        upper_lat=args.below_lat,
-        eastern=args.easternmost,
-        western=args.westernmost,
-        srid=args.srid
-    )
+    else:
 
-    print("This is the provenance of the CUMINDEX file:")
-    print(f"As of PDS Volume {volume}, orbit {orbit}, {lastdate}.")
+        table, geom_cols = create_table(
+            label,
+            metadata,
+            columns,
+            table=table_name,
+            geotype=geotypes[args.type],
+            srid=args.srid,
+        )
+        # for c in table.c:
+        #     print(c.key)
+
+        table.create(engine)
+
+        volume, orbit, lastdate = insert(
+            engine.connect(),
+            table,
+            columns,
+            geom_cols,
+            args.index,
+            pvl_table=label["INDEX_TABLE"],
+            lower_lat=args.above_lat,
+            upper_lat=args.below_lat,
+            eastern=args.easternmost,
+            western=args.westernmost,
+            srid=args.srid
+        )
+
+        print("This is the provenance of the CUMINDEX file:")
+        print(f"As of PDS Volume {volume}, orbit {orbit}, {lastdate}.")
+
     return
 
 
@@ -205,14 +239,11 @@ def create_table(
     label: dict,
     metadata,
     columns,
+    table_name,
     geotype=Geometry,
     srid=-1,  # Default for geoalchemy, I think.
-    table_name=None,
     pvl_table="INDEX_TABLE"
 ):
-    if table_name is None:
-        table_name = label[pvl_table]["NAME"]
-
     column_type = {"A": String, "I": Integer, "F": Float, "E": Float}
 
     possible_lons = dict()
@@ -338,6 +369,68 @@ def insert(
     lastdate = lastrow["START_TIME"].strip('" \'').split()[0]
 
     return volume, orbit, lastdate
+
+
+def get_product(pid: str, pvl_table, path: Path):
+
+    fieldnames = []
+    for c in pvl_table.getall("COLUMN"):
+        fieldnames.append(c["NAME"])
+
+    d = None
+    with open(path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, fieldnames=fieldnames)
+        for row in reader:
+            if row["PRODUCT_ID"] == pid:
+                d = row
+                break
+
+    if d is None:
+        raise ValueError(f"The PRODUCT_ID {pid} is not present in {path}")
+
+    return d
+
+
+def insert_one(conn, table, row, geotype, srid=-1):
+
+    possible_lons = dict()
+    possible_lats = dict()
+
+    for c in table.columns:
+        if c.name.casefold().endswith("longitude"):
+            possible_lons[geo_root(c.name)] = c.name
+        elif c.name.casefold().endswith("latitude"):
+            possible_lats[geo_root(c.name)] = c.name
+        else:
+            pass
+
+    gc, _ = geom_cols(possible_lons, possible_lats, geotype, srid)
+
+    db_dict = dict()
+    for c in table.columns:
+        if c.name in row:
+            db_dict[c.name] = row[c.name].strip()
+        elif c.name in gc:
+            for k, v in gc.items():
+                if len(v) == 4:
+                    db_dict[k] = (
+                        f"SRID={srid};POLYGON(({row[v[0][0]]} {row[v[0][1]]}, "
+                        f"{row[v[1][0]]} {row[v[1][1]]}, "
+                        f"{row[v[2][0]]} {row[v[2][1]]}, "
+                        f"{row[v[3][0]]} {row[v[3][1]]}, "
+                        f"{row[v[0][0]]} {row[v[0][1]]}))"
+                    )
+                elif len(v) == 2:
+                    db_dict[k] = f"SRID={srid};POINT({row[v[0]]} {row[v[1]]})"
+                else:
+                    raise IndexError(
+                        f"The Values in {k} ({v}) are not 2 or 4 coords."
+                    )
+        else:
+            pass
+
+    conn.execute(table.insert(), **db_dict)
+    return
 
 
 if __name__ == "__main__":
