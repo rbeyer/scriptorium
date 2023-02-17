@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 import pvl
+from shapely import wkt
 from sqlalchemy import (
     Table, Column, Float, Integer, String, MetaData, create_engine
 )
@@ -196,7 +197,7 @@ def main():
             label,
             metadata,
             columns,
-            table=table_name,
+            table_name,
             geotype=geotypes[args.type],
             srid=args.srid,
         )
@@ -309,20 +310,37 @@ def geom_cols(possible_lons, possible_lats, geotype, srid):
 
 
 def parse_geom_cols(k, v, row, srid):
+    # These must be converted to the -180 to 180 longitude domain,
+    # since the Geography column type needs that domain for computations.
+    # Its an Earth-centric world after all.
     if len(v) == 4:
-        return (
-            f"SRID={srid};POLYGON(({row[v[0][0]]} {row[v[0][1]]}, "
-            f"{row[v[1][0]]} {row[v[1][1]]}, "
-            f"{row[v[2][0]]} {row[v[2][1]]}, "
-            f"{row[v[3][0]]} {row[v[3][1]]}, "
-            f"{row[v[0][0]]} {row[v[0][1]]}))"
+        g = (
+            f"POLYGON(("
+            f"{lon_180(row[v[0][0]])} {row[v[0][1]]}, "
+            f"{lon_180(row[v[1][0]])} {row[v[1][1]]}, "
+            f"{lon_180(row[v[2][0]])} {row[v[2][1]]}, "
+            f"{lon_180(row[v[3][0]])} {row[v[3][1]]}, "
+            f"{lon_180(row[v[0][0]])} {row[v[0][1]]}))"
         )
 
     elif len(v) == 2:
-        return f"SRID={srid};POINT({row[v[0]]} {row[v[1]]})"
+        g = f"POINT({lon_180(row[v[0]])} {row[v[1]]})"
 
     else:
         raise IndexError(f"The Values in {k} ({v}) are not 2 or 4 coords.")
+
+    if wkt.loads(g).is_valid:
+        return f"SRID={srid};{g}"
+    else:
+        raise ValueError(f"The geometry {g} is invalid.")
+
+
+def lon_180(longitude):
+    lon = float(longitude)
+    if lon > 180:
+        return lon - 360
+    else:
+        return lon
 
 
 def insert(
@@ -350,7 +368,10 @@ def insert(
                 db_dict[c] = row[c].strip()
 
             for k, v in geom_cols.items():
-                db_dict[k] = parse_geom_cols(k, v, row, srid)
+                try: 
+                    db_dict[k] = parse_geom_cols(k, v, row, srid)
+                except ValueError as err:
+                    print(f"{db_dict}: {err} Skipping.")
 
             if not (
                 lower_lat <= float(row["CENTER_LATITUDE"]) <= upper_lat
