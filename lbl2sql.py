@@ -180,8 +180,8 @@ def main():
         table_name = args.table
 
     if args.product is not None:
-        meta.reflect(bind=engine)
-        dbtable = meta.tables[table_name]
+        metadata.reflect(bind=engine)
+        dbtable = metadata.tables[table_name]
         p = get_product(args.product, label["INDEX_TABLE"], args.index)
         insert_one(
             engine.connect(),
