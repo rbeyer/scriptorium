@@ -237,7 +237,11 @@ def main():
             else:
                 print('            ' + area_str)
 
-            ring = geom.GetGeometryRef(0)
+            if geom.GetGeometryName() == "LINESTRING":
+                ring = geom
+            else:
+                ring = geom.GetGeometryRef(0)
+
             pairs = []
             for p in range(ring.GetPointCount()):
                 x, y, z = ring.GetPoint(p)
