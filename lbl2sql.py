@@ -155,7 +155,7 @@ def main():
     if not database_exists(args.dburl):
         print(
             f"""\
-            The database ({db.args}) does not exist.  Create it, and
+            The database ({args.dburl}) does not exist.  Create it, and
             enable postgis: CREATE EXTENSION postgis;
             You will also need to set an appropriate SRID in the new
             database's spatial_ref_sys column.  Here's an example for
