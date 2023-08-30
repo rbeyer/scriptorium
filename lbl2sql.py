@@ -24,8 +24,9 @@ from pathlib import Path
 import pvl
 from shapely import wkt
 from sqlalchemy import (
-    Table, Column, Float, Integer, String, MetaData, create_engine
+    Table, Column, Float, Integer, String, MetaData, create_engine,
 )
+from sqlalchemy import insert as sql_insert
 from sqlalchemy_utils import database_exists
 from geoalchemy2 import Geometry, Geography
 
@@ -367,12 +368,6 @@ def insert(
             for c in columns:
                 db_dict[c] = row[c].strip()
 
-            for k, v in geom_cols.items():
-                try: 
-                    db_dict[k] = parse_geom_cols(k, v, row, srid)
-                except ValueError as err:
-                    print(f"{db_dict}: {err} Skipping.")
-
             if not (
                 lower_lat <= float(row["CENTER_LATITUDE"]) <= upper_lat
             ):
@@ -383,7 +378,16 @@ def insert(
             ):
                 continue
 
-            conn.execute(table.insert(), **db_dict)
+            for k, v in geom_cols.items():
+                try: 
+                    db_dict[k] = parse_geom_cols(k, v, row, srid)
+                except ValueError as err:
+                    print(f"{db_dict}: {err} Skipping.")
+
+            # conn.execute(table.insert(), **db_dict)
+            stmt = sql_insert(table).values(**db_dict)
+            conn.execute(stmt)
+            conn.commit()
 
     volume = lastrow["VOLUME_ID"].strip('" \'')
     orbit = lastrow["ORBIT_NUMBER"].strip('" \'')
