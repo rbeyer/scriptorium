@@ -164,7 +164,10 @@ def main():
         for feature in layer:
             try:
                 name = feature.GetField("Name")
-                desc = feature.GetField("Descriptor")
+                try:
+                    desc = feature.GetField("Descriptor")
+                except KeyError:
+                    desc = ''
             except ValueError:
                 name = 'Feature'
                 for i in range(layer.GetLayerDefn().GetFieldCount()):
